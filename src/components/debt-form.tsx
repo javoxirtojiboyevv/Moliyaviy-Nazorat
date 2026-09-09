@@ -1,0 +1,20 @@
+'use client'
+import { useEffect, useMemo, useState } from 'react'
+import { formatMoney, isoDate, parseMoney } from '@/lib/finance'
+import type { Debt, DebtInput } from '@/types/database'
+
+export function DebtForm({ debt, onCancel, onSave }: { debt?: Debt; onCancel: () => void; onSave: (input: DebtInput) => Promise<void> }) {
+  const [name,setName]=useState(debt?.name??''); const [creditor,setCreditor]=useState(debt?.creditor??'')
+  const [total,setTotal]=useState(String(debt?.total_amount??'')); const [down,setDown]=useState(String(debt?.down_payment??0))
+  const [months,setMonths]=useState(String(debt?.total_months??12)); const [start,setStart]=useState(debt?.start_date??isoDate(new Date()))
+  const [dueDay,setDueDay]=useState(String(debt?.due_day??15)); const [note,setNote]=useState(debt?.note??'')
+  const [reminder,setReminder]=useState(debt?.reminder_enabled??true); const [busy,setBusy]=useState(false); const [error,setError]=useState('')
+  useEffect(()=>setError(''),[name,total,down,months,start,dueDay])
+  const financed=Math.max(0,parseMoney(total)-parseMoney(down)), count=Math.max(1,Number.parseInt(months||'1',10)||1)
+  const monthly=useMemo(()=>Math.ceil(financed/count),[financed,count])
+  async function submit(e:React.FormEvent){e.preventDefault();setError('');const t=parseMoney(total),d=parseMoney(down),m=Number.parseInt(months,10),day=Number.parseInt(dueDay,10)
+    if(!name.trim())return setError('Qarz nomini kiriting.');if(t<=0)return setError('Umumiy summa 0 dan katta bo‘lishi kerak.');if(d<0||d>t)return setError('Boshlang‘ich to‘lov umumiy summadan oshmasligi kerak.');if(!Number.isInteger(m)||m<1||m>600)return setError('Muddat 1–600 oy oralig‘ida bo‘lishi kerak.');if(!Number.isInteger(day)||day<1||day>31)return setError('To‘lov kuni 1–31 oralig‘ida bo‘lishi kerak.');
+    setBusy(true);try{await onSave({name:name.trim(),creditor:creditor.trim(),totalAmount:t,downPayment:d,totalMonths:m,startDate:start,dueDay:day,note:note.trim(),reminderEnabled:reminder})}catch(err){setError(err instanceof Error?err.message:'Saqlashda xatolik.')}finally{setBusy(false)}}
+  return <form className="form-stack" onSubmit={submit}><div className="form-grid"><label><span>Nomi *</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Masalan, iPhone 17" autoFocus/></label><label><span>Do‘kon / kreditor</span><input value={creditor} onChange={e=>setCreditor(e.target.value)} placeholder="Masalan, Texnomart"/></label><label><span>Umumiy summa *</span><input inputMode="numeric" value={total} onChange={e=>setTotal(e.target.value)} placeholder="12000000"/></label><label><span>Boshlang‘ich to‘lov</span><input inputMode="numeric" value={down} onChange={e=>setDown(e.target.value)} placeholder="0"/></label><label><span>Jami oy *</span><input type="number" min="1" max="600" value={months} onChange={e=>setMonths(e.target.value)}/></label><label><span>Har oyning to‘lov kuni</span><input type="number" min="1" max="31" value={dueDay} onChange={e=>setDueDay(e.target.value)}/></label><label><span>Boshlanish sanasi</span><input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label className="toggle-label"><span><b>Eslatma</b><small>To‘lovlar bo‘limida yaqin muddat sifatida ko‘rsatiladi</small></span><input type="checkbox" checked={reminder} onChange={e=>setReminder(e.target.checked)}/></label></div><label><span>Izoh</span><textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="Ixtiyoriy izoh"/></label>
+    <div className="calc-preview"><div><span>Moliyalashtirilgan qarz</span><b>{formatMoney(financed)}</b></div><div><span>Taxminiy oylik to‘lov</span><b>{formatMoney(monthly)}</b></div><small>Oxirgi oy to‘lovi qoldiq summaga qarab avtomatik moslashtiriladi.</small></div>{error&&<div className="alert alert-danger">{error}</div>}<div className="modal-actions"><button type="button" className="btn secondary" onClick={onCancel}>Bekor qilish</button><button className="btn primary" disabled={busy}>{busy?'Saqlanmoqda…':debt?'O‘zgarishlarni saqlash':'Qarz qo‘shish'}</button></div></form>
+}

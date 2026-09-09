@@ -1,0 +1,3 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+export async function GET(request:NextRequest){const code=request.nextUrl.searchParams.get('code'), next=request.nextUrl.searchParams.get('next')||'/dashboard';if(code){const supabase=await createClient();const {error}=await supabase.auth.exchangeCodeForSession(code);if(!error){const target=request.nextUrl.clone();target.pathname=next.startsWith('/')?next:'/dashboard';target.search='';return NextResponse.redirect(target)}}const target=request.nextUrl.clone();target.pathname='/login';target.search='?error=Tasdiqlash%20havolasi%20yaroqsiz%20yoki%20muddati%20o‘tgan';return NextResponse.redirect(target)}
